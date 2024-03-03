@@ -1,3 +1,19 @@
+const mysql = require('mysql2');
+require('dotenv').config();
+
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+});
+
+module.exports = pool;
+
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -16,27 +32,23 @@ const authJWT = require('../middlewares/authJWT');
 router.post('/signup', async(req, res) => {
     //redis 연결 for refresh token 저장
     //signToken 해체
+    console.log(18)
     try {
-        const signInfoVerified = jwt.signVerify(req.body.signToken);
-        if (signInfoVerified === false) {
-            return res.status(400).json({
-                statusCode: 1020, 
-                message: "invalid sign token" 
-            })
-        }
+        // const signInfoVerified = jwt.signVerify(req.body.signToken);
+        // if (signInfoVerified === false) {
+        //     return res.status(400).json({
+        //         statusCode: 1020, 
+        //         message: "invalid sign token" 
+        //     })
+        //}
         const salt = await bcrypt.genSalt(saltRounds);
-        const encrypted = await bcrypt.hash(signInfoVerified.pwd, salt);
+        console.log(27)
+        const encrypted = await bcrypt.hash(req.body.pwd, salt);
+        console.log(29)
 
-        const insertMemberResult =  await db.promise().query(`
-            INSERT INTO member(member_name, member_email, member_pwd, is_accept_marketing)
-            VALUES('${signInfoVerified.name}','${signInfoVerified.email}', '${encrypted}','${req.body.marketingPolicy}')
-        `)
-        const memberId = insertMemberResult[0].insertId;
         await db.promise().query(`
-            INSERT INTO folder(folder_name, member_id)
-            VALUES 
-            ('meetable', ${memberId}),
-            ('trash', ${memberId})
+            INSERT INTO member(member_name, member_email, member_pwd ,member_tel)
+            VALUES('${req.body.name}','${req.body.email}', '${encrypted}','${req.body.tel}')
         `)
         res.status(201).send({ 
             message: "signup succeed"
